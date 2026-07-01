@@ -96,7 +96,7 @@ class Delay:
 
     MAX_DELAY_TIME_S = 3
 
-    def __init__(self, sample_rate, delay_time_s, feedback):
+    def __init__(self, sample_rate, delay_time_s, feedback, dry_wet):
         """
         class constructor.
 
@@ -107,10 +107,14 @@ class Delay:
         delay_time_s (float): delay time in seconds.
 
         feedback (float): feedback amount (in the range [0, 1])
+
+        dry_wet (float): dry / wet amount (in the range [0, 1] 0 being fully
+        dry, 1 being completely wet).
         """
         self.sample_rate = sample_rate
         self.circular_buffer = CircularBuffer(int(self.MAX_DELAY_TIME_S * sample_rate))
         self.feedback = feedback
+        self.dry_wet = dry_wet
 
         self.set_delay(delay_time_s)
 
@@ -147,7 +151,7 @@ class Delay:
 
         self.circular_buffer.write_sample(x + self.feedback * y)
 
-        return y
+        return (1 - self.dry_wet) * y + self.dry_wet * x
 
 
 if __name__== "__main__":
@@ -156,13 +160,14 @@ if __name__== "__main__":
     delay_time_s = 0.15
     num_samples = int(sample_rate * duration)
     feedback = 0.9
+    dry_wet = 0.5
 
     in_signal = np.zeros(num_samples)
     in_signal[0] = 1
 
     out_signal = np.zeros(num_samples)
 
-    dut = Delay(sample_rate, delay_time_s, feedback)
+    dut = Delay(sample_rate, delay_time_s, feedback, dry_wet)
 
     for i, sample in enumerate(in_signal):
         out_signal[i] = dut.process(sample)
