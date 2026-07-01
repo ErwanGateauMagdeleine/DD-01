@@ -90,11 +90,13 @@ class Delay:
     sample_rate (int): Sampling rate in Hz.
 
     circular_buffer (circularBuffer): Circular buffer used for the delay.
+
+    feedback (float): feedback amount (in the range [0, 1])
     """
 
     MAX_DELAY_TIME_S = 3
 
-    def __init__(self, sample_rate, delay_time_s):
+    def __init__(self, sample_rate, delay_time_s, feedback):
         """
         class constructor.
 
@@ -103,9 +105,13 @@ class Delay:
         sample_rate (int): Sample rate of the delay.
 
         delay_time_s (float): delay time in seconds.
+
+        feedback (float): feedback amount (in the range [0, 1])
         """
         self.sample_rate = sample_rate
         self.circular_buffer = CircularBuffer(int(self.MAX_DELAY_TIME_S * sample_rate))
+        self.feedback = feedback
+
         self.set_delay(delay_time_s)
 
     def set_delay(self, delay):
@@ -138,22 +144,25 @@ class Delay:
         y: delay output.
         """
         y = self.circular_buffer.read_sample()
-        self.circular_buffer.write_sample(x)
+
+        self.circular_buffer.write_sample(x + self.feedback * y)
 
         return y
 
 
 if __name__== "__main__":
+    duration = 10
     sample_rate = 44100
-    delay_time_s = 0.5
-    num_samples = int(sample_rate * 3 * delay_time_s)
+    delay_time_s = 0.15
+    num_samples = int(sample_rate * duration)
+    feedback = 0.9
 
     in_signal = np.zeros(num_samples)
     in_signal[0] = 1
 
     out_signal = np.zeros(num_samples)
 
-    dut = Delay(sample_rate, delay_time_s)
+    dut = Delay(sample_rate, delay_time_s, feedback)
 
     for i, sample in enumerate(in_signal):
         out_signal[i] = dut.process(sample)
