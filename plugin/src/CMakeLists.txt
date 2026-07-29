@@ -1,0 +1,138 @@
+# DD-01 - Digital delay JUCE based audio plugin
+# Copyright (C) 2026 Erwan Gateau-Magdeleine
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+# Sets the format the plugin will be built
+set(FORMATS VST3 AU)
+
+project(${PROJECT_NAME} VERSION 0.0.1)
+
+# No ZERO_CHECK target (it helps bust cache for cmake)
+set(CMAKE_SUPPRESS_REGENERATION true)
+
+# Adds all the module sources so they appear correctly in the IDE
+# Must be set before JUCE is added as a sub-dir (or any targets are made)
+# https://github.com/juce-framework/JUCE/commit/6b1b4cf7f6b1008db44411f2c8887d71a3348889
+set_property(GLOBAL PROPERTY USE_FOLDERS YES)
+
+option(JUCE_ENABLE_MODULE_SOURCE_GROUPS "Show all module sources in IDE projects" ON)
+
+juce_add_plugin("${PROJECT_NAME}"
+                COMPANY_NAME GateAudio
+                IS_SYNTH FALSE
+                NEEDS_MIDI_INPUT FALSE
+                NEEDS_MIDI_OUTPUT FALSE
+                IS_MIDI_EFFECT FALSE
+                EDITOR_WANTS_KEYBOARD_FOCUS FALSE
+                VST3_COPY_DIR "../OUT/"
+                COPY_PLUGIN_AFTER_BUILD TRUE
+                PLUGIN_MANUFACTURER_CODE GAIO
+                PLUGIN_CODE DD01
+                FORMATS ${FORMATS}
+                PRODUCT_NAME "${PROJECT_NAME}")
+
+target_compile_features("${PROJECT_NAME}" PRIVATE cxx_std_20)
+
+juce_generate_juce_header("${PROJECT_NAME}")
+
+set(SourceFiles
+    PluginEditor.h
+    PluginProcessor.h
+    PluginEditor.cpp
+    PluginProcessor.cpp
+    gui/customLookAndFeel.h
+    gui/customLookAndFeel.cpp
+    gui/customRotarySlider.h
+    gui/customRotarySlider.cpp
+    gui/colourScheme.h)
+
+target_sources("${PROJECT_NAME}" PRIVATE ${SourceFiles})
+
+set_target_properties("${PROJECT_NAME}" PROPERTIES FOLDER "")
+
+# Move the INTERFACE auto-created JUCE library stuff into its own folder
+source_group("JUCE Library Code" REGULAR_EXPRESSION "juce_")
+
+# We'll need to link to these from our plugin as well as our tests
+set(JUCE_DEPENDENCIES
+    juce::juce_audio_utils)
+
+target_compile_definitions("${PROJECT_NAME}"
+    PUBLIC
+    # JUCE_WEB_BROWSER and JUCE_USE_CURL would be on by default, but you might not need them.
+    JUCE_WEB_BROWSER=0  # If you remove this, add `NEEDS_WEB_BROWSER TRUE` to the `juce_add_plugin` call
+    JUCE_USE_CURL=0     # If you remove this, add `NEEDS_CURL TRUE` to the `juce_add_plugin` call
+    JUCE_VST3_CAN_REPLACE_VST2=0)
+
+target_compile_features("${PROJECT_NAME}" PRIVATE cxx_std_17)
+
+juce_add_binary_data(
+    BINARY_DATA
+    SOURCES
+    gui/Orbitron-Regular.ttf
+)
+
+target_link_libraries("${PROJECT_NAME}"
+    PRIVATE
+    ${JUCE_DEPENDENCIES}
+    PUBLIC
+    juce::juce_recommended_config_flags
+    juce::juce_recommended_lto_flags
+    juce::juce_recommended_warning_flags
+    BINARY_DATA)
+
+if (WIN32)
+    install(FILES
+        "${CMAKE_BINARY_DIR}/src/AW-01_artefacts/$<CONFIG>/VST3/AW-01.vst3/Contents/x86_64-win/AW-01.vst3"
+        DESTINATION "."
+        COMPONENT VST3
+    )
+elseif (APPLE)
+    install(DIRECTORY "$<TARGET_BUNDLE_DIR:AW-01_VST3>"
+            DESTINATION "Library/Audio/Plug-Ins/VST3"
+            COMPONENT VST3)
+
+    install(DIRECTORY "$<TARGET_BUNDLE_DIR:AW-01_AU>"
+            DESTINATION "Library/Audio/Plug-Ins/Components"
+            COMPONENT AU)
+endif()
+
+# --- CPack config ---
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/../LICENSE.txt")
+set(CPACK_PACKAGE_FILE_NAME "AW-01")
+set(CPACK_PACKAGE_NAME "AW-01")
+set(CPACK_PACKAGE_VENDOR "R1")
+set(CPACK_PACKAGE_VERSION "${CMAKE_PROJECT_VERSION}")
+
+if (WIN32)
+    set(CPACK_GENERATOR "NSIS")
+    set(CPACK_NSIS_DISPLAY_NAME "AW-01")
+    set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES64\\\\Common Files")
+    set(CPACK_COMPONENTS_ALL VST3)
+elseif (APPLE)
+    set(CPACK_GENERATOR "productbuild")
+    set(CPACK_PACKAGING_INSTALL_PREFIX "/")
+    set(CPACK_COMPONENTS_ALL VST3 AU)
+endif()
+
+include(CPack)
+
+cpack_add_component(VST3
+    DISPLAY_NAME "VST3 Plugin"
+    DESCRIPTION "Installs the VST3 plugin to /Library/Audio/Plug-Ins/VST3")
+
+cpack_add_component(AU
+    DISPLAY_NAME "Audio Unit Plugin"
+    DESCRIPTION "Installs the Audio Unit (AU) plugin to /Library/Audio/Plug-Ins/Components")
