@@ -1,23 +1,23 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
+import math
 
 class CircularBuffer:
     """
-    This class implements a circular buffer.
+    This class implements a circular buffer. The size of the buffer will be the nearest
+    power of two to the requested size.
 
     Attributes
     ----------
-    sample_rate (int): the operating sample rate of the buffer
     buf_size (int): The size of the circular buffer
-    read_pointer (int): circular buffer reading head
     write_pointer (int): cicular buffer writting head
     buffer (np.ndarray): circular buffer
+    wraping_mask (int): Mask used to wrap the read pointer efficiently.
     """
     def __init__(self, buf_size):
-        self.buf_size = buf_size
+        self.buf_size = int(math.pow(2, math.ceil(math.log(buf_size) / math.log(2))))
         self.buffer = np.zeros(self.buf_size)
-        self.read_pointer = 0
+        self.wraping_mask = self.buf_size - 1
         self.write_pointer = 0
 
     def reset(self):
@@ -26,7 +26,6 @@ class CircularBuffer:
         buffer to 0s.
         """
         self.read_pointer = 0
-        self.write_pointer = 0
         self.buffer[:,:] = 0
 
     def write_sample(self, x):
@@ -39,46 +38,36 @@ class CircularBuffer:
         x (float): input sample
         """
         self.buffer[self.write_pointer] = x
-        self.write_pointer += 1 
-        self.write_pointer %= self.buf_size
+        self.write_pointer = (self.write_pointer + 1) & self.wraping_mask
 
-    def read_sample(self):
+    def _read_sample(self, delay):
         """
         Reads a sample from the delay line. and updates the
         read pointer.
+
+        Params
+        ------
+        delay (int) the delay to be applied in samples
 
         return
         ------
         y (float): The output sample.
         """
-        y = self.buffer[self.read_pointer]
-        self.read_pointer += 1 
-        self.read_pointer %= self.buf_size
-        return y
+        # - 1 as we read before we write.
+        read_pointer = (self.write_pointer - 1) - int(delay)
+        read_pointer &= self.wraping_mask
 
-    def set_read_pointer(self, read_pointer):
-        """
-        Sets the read pointer to a chosen value.
-        """
-        if (read_pointer > self.buf_size) or (read_pointer < 0):
-            raise ValueError("Value of the chosen read pointer is out of the buffer.")
-        self.read_pointer = read_pointer
-    
-    def get_buffer_size(self):
-        """
-        Returns the size of the circular buffer
-        """
-        return self.buf_size
+        return self.buffer[read_pointer]
 
-    def get_write_pointer(self):
+    def read_sample(self, delay):
         """
-        Getter for the write pointer value
-        
-        returns
-        -------
-        write_pointer (int): value of the write pointer.
         """
-        return self.write_pointer
+        y1 = self._read_sample(int(delay))
+        y2 = self._read_sample(int(delay) + 1)
+
+        fraction = delay - int(delay)
+
+        return (fraction * y2) + (1.0 - fraction) * y1
 
 
 class Delay:
@@ -116,24 +105,7 @@ class Delay:
         self.feedback = feedback
         self.dry_wet = dry_wet
 
-        self.set_delay(delay_time_s)
-
-    def set_delay(self, delay):
-        """
-        Sets the delay value by moving the read pointer
-        to the proper location
-
-        Params
-        -------
-        delay (float) the delay lenght in seconds
-        """
-        delay_in_samples = int(delay * self.sample_rate)
-
-        read_pointer = self.circular_buffer.get_write_pointer() - delay_in_samples
-        if read_pointer < 0:
-            read_pointer += self.circular_buffer.get_buffer_size()
-
-        self.circular_buffer.set_read_pointer(read_pointer)
+        self.delay_in_samples = delay_time_s * self.sample_rate
 
     def process(self, x):
         """
@@ -147,19 +119,19 @@ class Delay:
         -------
         y: delay output.
         """
-        y = self.circular_buffer.read_sample()
+        y = self.circular_buffer.read_sample(self.delay_in_samples)
 
         self.circular_buffer.write_sample(x + self.feedback * y)
 
-        return (1 - self.dry_wet) * y + self.dry_wet * x
+        return self.dry_wet * y + (1 - self.dry_wet) * x
 
 
 if __name__== "__main__":
-    duration = 10
+    duration = 3
     sample_rate = 44100
     delay_time_s = 0.15
     num_samples = int(sample_rate * duration)
-    feedback = 0.9
+    feedback = 0.5
     dry_wet = 0.5
 
     in_signal = np.zeros(num_samples)
