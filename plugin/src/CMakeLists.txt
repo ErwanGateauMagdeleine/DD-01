@@ -56,7 +56,8 @@ set(SourceFiles
     gui/customLookAndFeel.cpp
     gui/customRotarySlider.h
     gui/customRotarySlider.cpp
-    gui/colourScheme.h)
+    gui/colourScheme.h
+    dsp/DelayLine.h)
 
 target_sources("${PROJECT_NAME}" PRIVATE ${SourceFiles})
 

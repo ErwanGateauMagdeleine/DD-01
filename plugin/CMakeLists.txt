@@ -21,3 +21,4 @@ enable_testing()
 
 add_subdirectory(JUCE)
 add_subdirectory(src)
+add_subdirectory(tests)
