@@ -69,7 +69,6 @@ class CircularBuffer:
 
         return (fraction * y2) + (1.0 - fraction) * y1
 
-
 class Delay:
     """
     This class implements an audio delay.
