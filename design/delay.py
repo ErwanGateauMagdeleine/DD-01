@@ -20,14 +20,6 @@ class CircularBuffer:
         self.wraping_mask = self.buf_size - 1
         self.write_pointer = 0
 
-    def reset(self):
-        """
-        Resets the circular buffer pointers and re-initialize the
-        buffer to 0s.
-        """
-        self.read_pointer = 0
-        self.buffer[:,:] = 0
-
     def write_sample(self, x):
         """
         Writes an input sample into the circular buffer and advances the
@@ -69,6 +61,7 @@ class CircularBuffer:
 
         return (fraction * y2) + (1.0 - fraction) * y1
 
+
 class Delay:
     """
     This class implements an audio delay.
@@ -84,7 +77,7 @@ class Delay:
 
     MAX_DELAY_TIME_S = 3
 
-    def __init__(self, sample_rate, delay_time_s, feedback, dry_wet):
+    def __init__(self, sample_rate, delay_time_s, feedback, dry_wet, reversed):
         """
         class constructor.
 
@@ -100,15 +93,18 @@ class Delay:
         dry, 1 being completely wet).
         """
         self.sample_rate = sample_rate
-        self.circular_buffer = CircularBuffer(int(self.MAX_DELAY_TIME_S * sample_rate))
+        self.circular_buffer = CircularBuffer(int(2 * self.MAX_DELAY_TIME_S * sample_rate) + 2)
         self.feedback = feedback
         self.dry_wet = dry_wet
 
         self.delay_in_samples = delay_time_s * self.sample_rate
 
-    def process(self, x):
+        self.reversed = reversed
+        self.phase = 0.0
+
+    def _process_straight(self, x):
         """
-        Processes a signal through the delay.
+        Processes a signal through the straight delay.
 
         Arguments
         ---------
@@ -122,6 +118,50 @@ class Delay:
 
         self.circular_buffer.write_sample(x + self.feedback * y)
 
+        return y
+
+    def _process_reversed_gain_smoothing(self, x):
+        """
+        Processes a signal through the reversed delay.
+
+        Arguments
+        ---------
+        x (float): delay input.
+
+        returns
+        -------
+        y: delay output.
+        """
+        delay = 2 * self.delay_in_samples * self.phase
+        delay_ratio = delay / (2 * self.delay_in_samples)
+        gain = 4 * (delay_ratio) * (1 - delay_ratio)
+
+        self.phase += 1 / self.delay_in_samples
+        self.phase %= 1
+
+        y = gain * self.circular_buffer.read_sample(delay)
+
+        self.circular_buffer.write_sample(x + self.feedback * y)
+
+        return y
+
+    def process(self, x):
+        """
+        Processes a signal through the delay.
+
+        Arguments
+        ---------
+        x (float): delay input.
+
+        returns
+        -------
+        y: delay output.
+        """
+        if self.reversed:
+            y = self._process_reversed_gain_smoothing(x)
+        else:
+            y = self._process_straight(x)
+
         return self.dry_wet * y + (1 - self.dry_wet) * x
 
 
@@ -131,14 +171,19 @@ if __name__== "__main__":
     delay_time_s = 0.15
     num_samples = int(sample_rate * duration)
     feedback = 0.5
-    dry_wet = 0.5
+    dry_wet = 1
+    rev = True
 
     in_signal = np.zeros(num_samples)
-    in_signal[0] = 1
+    if rev:
+        n = 24000
+        in_signal[:n] = np.linspace(0, 1, 24000)
+    else:
+        in_signal[0] = 1
 
     out_signal = np.zeros(num_samples)
 
-    dut = Delay(sample_rate, delay_time_s, feedback, dry_wet)
+    dut = Delay(sample_rate, delay_time_s, feedback, dry_wet, rev)
 
     for i, sample in enumerate(in_signal):
         out_signal[i] = dut.process(sample)
