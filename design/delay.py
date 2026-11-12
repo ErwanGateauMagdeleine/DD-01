@@ -1,6 +1,46 @@
+# DD-01 - AutoWah JUCE based audio plugin
+# Copyright (C) 2026 Erwan Gateau-Magdeleine
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+import argparse
+from utils import get_audio
+import sounddevice as sd
+
+
+def parse_param():
+    """
+    Parses command line arguments.
+
+    Returns:
+        argparse.Namespace: Parsed command line arguments.
+    """
+    parser = argparse.ArgumentParser(description="delay test script")
+
+    parser.add_argument('--feedback', type=float, required=True, help="Delay feedback")
+    parser.add_argument('--dry-wet', type=float, required=True, help="Delay dry / wet")
+    parser.add_argument('--time', type=float, required=True, help="delay time in seconds.")
+    parser.add_argument('--type', choices=["straight", "half-rev", "rev"], required=True, help="Selects the delay type.")
+    parser.add_argument('--audio-file', type=str, default="design/audio_files/one-time-piano.wav",
+                        help="Audio file to use to test the delay")
+    parser.add_argument('--display', action='store_true', help="Display the signal instead of playing it.")
+
+    return parser.parse_args()
+
 
 class CircularBuffer:
     """
@@ -19,14 +59,6 @@ class CircularBuffer:
         self.buffer = np.zeros(self.buf_size)
         self.wraping_mask = self.buf_size - 1
         self.write_pointer = 0
-
-    def reset(self):
-        """
-        Resets the circular buffer pointers and re-initialize the
-        buffer to 0s.
-        """
-        self.read_pointer = 0
-        self.buffer[:,:] = 0
 
     def write_sample(self, x):
         """
@@ -69,6 +101,7 @@ class CircularBuffer:
 
         return (fraction * y2) + (1.0 - fraction) * y1
 
+
 class Delay:
     """
     This class implements an audio delay.
@@ -79,12 +112,14 @@ class Delay:
 
     circular_buffer (circularBuffer): Circular buffer used for the delay.
 
+    reversed_circular_buffer (circularBuffer): Circular buffer for the reverse algo.
+
     feedback (float): feedback amount (in the range [0, 1])
     """
 
     MAX_DELAY_TIME_S = 3
 
-    def __init__(self, sample_rate, delay_time_s, feedback, dry_wet):
+    def __init__(self, sample_rate, delay_time_s, feedback, dry_wet, delay_type):
         """
         class constructor.
 
@@ -101,14 +136,18 @@ class Delay:
         """
         self.sample_rate = sample_rate
         self.circular_buffer = CircularBuffer(int(self.MAX_DELAY_TIME_S * sample_rate))
+        self.reversed_circular_buffer = CircularBuffer(int(2 * self.MAX_DELAY_TIME_S * sample_rate) + 2)
         self.feedback = feedback
         self.dry_wet = dry_wet
 
         self.delay_in_samples = delay_time_s * self.sample_rate
 
-    def process(self, x):
+        self.delay_type = delay_type
+        self.phase = 0.0
+
+    def _process_straight(self, x):
         """
-        Processes a signal through the delay.
+        Processes a signal through the straight delay.
 
         Arguments
         ---------
@@ -122,30 +161,116 @@ class Delay:
 
         self.circular_buffer.write_sample(x + self.feedback * y)
 
+        return y
+
+    def _process_half_reversed_gain_smoothing(self, x):
+        """
+        Processes a signal through the half reversed delay.
+
+        Arguments
+        ---------
+        x (float): delay input.
+
+        returns
+        -------
+        y: delay output.
+        """
+        delay = 2 * self.delay_in_samples * self.phase
+        delay_ratio = delay / (2 * self.delay_in_samples)
+        gain = 4 * (delay_ratio) * (1 - delay_ratio)
+
+        self.phase += 1 / self.delay_in_samples
+        self.phase %= 1
+
+        y = gain * self.reversed_circular_buffer.read_sample(delay)
+
+        self.reversed_circular_buffer.write_sample(x + self.feedback * y)
+
+        return y
+
+    def _process_reversed_gain_smoothing(self, x):
+        """
+        Processes a signal through the reversed delay.
+
+        Arguments
+        ---------
+        x (float): delay input.
+
+        returns
+        -------
+        y: delay output.
+        """
+        delay = 2 * self.delay_in_samples * self.phase
+        delay_ratio = delay / (2 * self.delay_in_samples)
+        gain = 4 * (delay_ratio) * (1 - delay_ratio)
+
+        self.phase += 1 / self.delay_in_samples
+        self.phase %= 1
+
+        y_delay = gain * self.reversed_circular_buffer.read_sample(delay)
+        y_rev_delay = self.circular_buffer.read_sample(self.delay_in_samples)
+        y_sum = y_delay + y_rev_delay
+
+        self.reversed_circular_buffer.write_sample(x)
+        self.circular_buffer.write_sample(self.feedback * y_sum)
+
+        return y_sum
+
+    def process(self, x):
+        """
+        Processes a signal through the delay.
+
+        Arguments
+        ---------
+        x (float): delay input.
+
+        returns
+        -------
+        y: delay output.
+        """
+        if self.delay_type == "straight":
+            y = self._process_straight(x)
+        elif self.delay_type == "half-rev":
+            y = self._process_half_reversed_gain_smoothing(x)
+        else:
+            y = self._process_reversed_gain_smoothing(x)
+
         return self.dry_wet * y + (1 - self.dry_wet) * x
 
 
 if __name__== "__main__":
-    duration = 3
-    sample_rate = 44100
-    delay_time_s = 0.15
-    num_samples = int(sample_rate * duration)
-    feedback = 0.5
-    dry_wet = 0.5
 
-    in_signal = np.zeros(num_samples)
-    in_signal[0] = 1
+    args = parse_param()
+    feedback = args.feedback
+    dry_wet = args.dry_wet
+    delay_type = args.type
+    delay_time_s = args.time
+
+    sample_rate, num_channels, channels_data = get_audio(args.audio_file)
+
+    if num_channels > 1:
+        # Extract the first channel if the signal is stereo
+        signal = channels_data[:, 0]
+
+    if args.display:
+        # Add 0 padding after the signal to see all repetitions when feedback is
+        signal = np.pad(signal, (0, len(signal) + 3 * sample_rate))
+        num_samples  = len(signal)
 
     out_signal = np.zeros(num_samples)
 
-    dut = Delay(sample_rate, delay_time_s, feedback, dry_wet)
+    dut = Delay(sample_rate, delay_time_s, feedback, dry_wet, delay_type)
 
-    for i, sample in enumerate(in_signal):
+    for i, sample in enumerate(signal):
         out_signal[i] = dut.process(sample)
 
-    time = np.arange(num_samples) / sample_rate
-
-    plt.figure(figsize=(10, 6))
-    plt.plot(time, in_signal)
-    plt.plot(time, out_signal)
-    plt.show()
+    if args.display:
+        time = np.arange(num_samples) / sample_rate
+        plt.figure(figsize=(10, 6))
+        plt.plot(time, signal)
+        plt.plot(time, out_signal)
+        plt.show()
+    else:
+        # Play the audio
+        sd.play(out_signal, samplerate=sample_rate)
+        sd.wait()
