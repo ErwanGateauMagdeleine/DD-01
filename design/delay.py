@@ -35,8 +35,9 @@ def parse_param():
     parser.add_argument('--dry-wet', type=float, required=True, help="Delay dry / wet")
     parser.add_argument('--time', type=float, required=True, help="delay time in seconds.")
     parser.add_argument('--type', choices=["straight", "half-rev", "rev"], required=True, help="Selects the delay type.")
-    parser.add_argument('--audio-file', type=str, default="design/audio_files/piano_loop.wav",
+    parser.add_argument('--audio-file', type=str, default="design/audio_files/one-time-piano.wav",
                         help="Audio file to use to test the delay")
+    parser.add_argument('--display', action='store_true', help="Display the signal instead of playing it.")
 
     return parser.parse_args()
 
@@ -242,24 +243,34 @@ if __name__== "__main__":
     args = parse_param()
     feedback = args.feedback
     dry_wet = args.dry_wet
-    rev = args.reversed
+    delay_type = args.type
     delay_time_s = args.time
-
 
     sample_rate, num_channels, channels_data = get_audio(args.audio_file)
 
     if num_channels > 1:
         # Extract the first channel if the signal is stereo
         signal = channels_data[:, 0]
-        num_samples = len(signal)
+
+    if args.display:
+        # Add 0 padding after the signal to see all repetitions when feedback is
+        signal = np.pad(signal, (0, len(signal) + 3 * sample_rate))
+        num_samples  = len(signal)
 
     out_signal = np.zeros(num_samples)
 
-    dut = Delay(sample_rate, delay_time_s, feedback, dry_wet, rev)
+    dut = Delay(sample_rate, delay_time_s, feedback, dry_wet, delay_type)
 
     for i, sample in enumerate(signal):
         out_signal[i] = dut.process(sample)
 
-    # Play the audio
-    sd.play(out_signal, samplerate=sample_rate)
-    sd.wait()
+    if args.display:
+        time = np.arange(num_samples) / sample_rate
+        plt.figure(figsize=(10, 6))
+        plt.plot(time, signal)
+        plt.plot(time, out_signal)
+        plt.show()
+    else:
+        # Play the audio
+        sd.play(out_signal, samplerate=sample_rate)
+        sd.wait()
