@@ -57,7 +57,7 @@ set(SourceFiles
     gui/customRotarySlider.h
     gui/customRotarySlider.cpp
     gui/colourScheme.h
-    dsp/DelayLine.h)
+    dsp/circularBuffer.h)
 
 target_sources("${PROJECT_NAME}" PRIVATE ${SourceFiles})
 

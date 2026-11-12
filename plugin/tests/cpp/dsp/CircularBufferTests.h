@@ -16,7 +16,7 @@
 */
 
 #pragma once
-#include "DelayLine.h"
+#include "circularBuffer.h"
 
 #define SAMPLE_RATE (44100)
 
