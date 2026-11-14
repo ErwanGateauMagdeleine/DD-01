@@ -30,7 +30,10 @@ TEST_CASE("Buffer Length is a power of two")
     }));
 
     CircularBuffer<float> cBuf;
-    cBuf.prepare(SAMPLE_RATE, maxDelayTime);
+
+    int delayTimeInSamples = static_cast<int>(maxDelayTime * SAMPLE_RATE);
+
+    cBuf.prepare(SAMPLE_RATE, delayTimeInSamples);
 
     CAPTURE(maxDelayTime);
     REQUIRE(cBuf.getBufferLength() == expected);
@@ -53,7 +56,7 @@ TEST_CASE("Integer delays are working properly")
 {
     const int N = 1000;
     CircularBuffer<float> cBuf;
-    cBuf.prepare(N, 1);
+    cBuf.prepare(N, N);
     const int d = GENERATE(0, 1, 2, 10, 100, 500, 998);
     for (unsigned i = 0; i < N; i++)
     {
@@ -69,7 +72,7 @@ TEST_CASE("Fractional delays are working properly")
 {
     const int N = 1000;
     CircularBuffer<float> cBuf;
-    cBuf.prepare(N, 1);
+    cBuf.prepare(N, N);
     const float d = GENERATE(0.25f, 0.5f, 0.75f, 1.5f, 10.3f, 100.5f, 500.9f, 997.5f);
     for (unsigned i = 0; i < N; i++)
     {

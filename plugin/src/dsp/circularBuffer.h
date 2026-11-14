@@ -29,12 +29,12 @@ public:
         wrapingMask = 0;
     }
 
-    void prepare(double newSampleRate, double maxDelayTimeInSec)
+    void prepare(double newSampleRate, int bufSz)
     {
-        size_t delayLineLength = nextPowerOfTwo(static_cast<int>(newSampleRate * maxDelayTimeInSec));
-        buffer.assign(delayLineLength, 0);
+        size_t bufSzPow2 = nextPowerOfTwo(bufSz);
+        buffer.assign(bufSzPow2, 0);
         writePointer = 0;
-        wrapingMask = static_cast<unsigned>(delayLineLength) - 1;
+        wrapingMask = static_cast<unsigned>(bufSzPow2) - 1;
         sampleRate = newSampleRate;
     }
 
