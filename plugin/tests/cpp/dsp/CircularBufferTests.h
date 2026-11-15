@@ -54,32 +54,30 @@ TEST_CASE("Delay Writing works properly")
 
 TEST_CASE("Integer delays are working properly")
 {
-    const int N = 1000;
     CircularBuffer<float> cBuf;
-    cBuf.prepare(N, N);
+    cBuf.prepare(SAMPLE_RATE, SAMPLE_RATE);
     const int d = GENERATE(0, 1, 2, 10, 100, 500, 998);
-    for (unsigned i = 0; i < N; i++)
+    for (unsigned i = 0; i < SAMPLE_RATE; i++)
     {
        cBuf.writeSample(static_cast<float>(i));
     }
 
-    const float out = cBuf.readSampleInterp(static_cast<float>(d) / N);
+    const float out = cBuf.readSampleInterp(static_cast<float>(d) / SAMPLE_RATE);
 
-    REQUIRE(out == Catch::Approx(static_cast<float>(N - 1 - d)).margin(1e-3));
+    REQUIRE(out == Catch::Approx(static_cast<float>(SAMPLE_RATE - 1 - d)).margin(1e-3));
 }
 
 TEST_CASE("Fractional delays are working properly")
 {
-    const int N = 1000;
     CircularBuffer<float> cBuf;
-    cBuf.prepare(N, N);
+    cBuf.prepare(SAMPLE_RATE, SAMPLE_RATE);
     const float d = GENERATE(0.25f, 0.5f, 0.75f, 1.5f, 10.3f, 100.5f, 500.9f, 997.5f);
-    for (unsigned i = 0; i < N; i++)
+    for (unsigned i = 0; i < SAMPLE_RATE; i++)
     {
        cBuf.writeSample(static_cast<float>(i));
     }
 
-    const float out = cBuf.readSampleInterp(d / N);
+    const float out = cBuf.readSampleInterp(d / SAMPLE_RATE);
 
-    REQUIRE(out == Catch::Approx(static_cast<float>(N - 1) - d).margin(1e-3));
+    REQUIRE(out == Catch::Approx(static_cast<float>(SAMPLE_RATE - 1) - d).margin(1e-3));
 }
