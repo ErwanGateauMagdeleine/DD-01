@@ -39,7 +39,7 @@ TEST_CASE("Buffer Length is a power of two")
     REQUIRE(cBuf.getBufferLength() == expected);
 }
 
-TEST_CASE("Delay Writing works properly")
+TEST_CASE("Buffer Writing works properly")
 {
     CircularBuffer<float> cBuf;
     cBuf.prepare(SAMPLE_RATE, 1);
@@ -52,7 +52,7 @@ TEST_CASE("Delay Writing works properly")
     }
 }
 
-TEST_CASE("Integer delays are working properly")
+TEST_CASE("Integer delays reads are working properly")
 {
     CircularBuffer<float> cBuf;
     cBuf.prepare(SAMPLE_RATE, SAMPLE_RATE);
@@ -67,7 +67,7 @@ TEST_CASE("Integer delays are working properly")
     REQUIRE(out == Catch::Approx(static_cast<float>(SAMPLE_RATE - 1 - d)).margin(1e-3));
 }
 
-TEST_CASE("Fractional delays are working properly")
+TEST_CASE("Fractional delays reads are working properly")
 {
     CircularBuffer<float> cBuf;
     cBuf.prepare(SAMPLE_RATE, SAMPLE_RATE);
@@ -80,4 +80,37 @@ TEST_CASE("Fractional delays are working properly")
     const float out = cBuf.readSampleInterp(d / SAMPLE_RATE);
 
     REQUIRE(out == Catch::Approx(static_cast<float>(SAMPLE_RATE - 1) - d).margin(1e-3));
+}
+
+TEST_CASE("Circular buffer can be reset")
+{
+    CircularBuffer<float> cBuf;
+    cBuf.prepare(SAMPLE_RATE, SAMPLE_RATE);
+
+    /* Fill half the buffer */
+    for (unsigned i = 0; i < SAMPLE_RATE / 2; i++)
+    {
+       cBuf.writeSample(1.0);
+    }
+
+    auto writePtr = cBuf.getWritePointer();
+
+    REQUIRE_FALSE(writePtr == 0);
+
+    for (unsigned i = 0; i < SAMPLE_RATE / 2; i++)
+    {
+        auto sample = cBuf.readSample(i);
+        REQUIRE(sample == 1.0);
+    }
+
+    cBuf.reset();
+
+    writePtr = cBuf.getWritePointer();
+    REQUIRE(writePtr == 0);
+
+    for (unsigned i = 0; i < SAMPLE_RATE; i++)
+    {
+        auto sample = cBuf.readSample(i);
+        REQUIRE(sample == 0.0);
+    }
 }

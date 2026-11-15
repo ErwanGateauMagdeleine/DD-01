@@ -70,6 +70,17 @@ public:
         return static_cast<size_t>(buffer.size());
     }
 
+    int getWritePointer()
+    {
+        return writePointer;
+    }
+
+    void reset()
+    {
+        writePointer = 0;
+        std::fill(buffer.begin(), buffer.end(), static_cast<SampleType>(0.0));
+    }
+
 private:
 
     size_t nextPowerOfTwo(size_t n)
