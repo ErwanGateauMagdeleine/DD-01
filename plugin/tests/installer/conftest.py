@@ -66,17 +66,17 @@ def get_plugin_installer_path():
 @pytest.fixture
 def install_plugin(get_plugin_installer_path, tmp_path_factory):
     if IS_WINDOWS:
-        install_dir = tmp_path_factory.mktemp("aw01_install", numbered=False)
+        install_dir = tmp_path_factory.mktemp("plugin_temp", numbered=False)
         result = subprocess.run([str(get_plugin_installer_path), "/S", f"/D={install_dir}"], capture_output=True, text=True)
         assert result.returncode == 0, f"Silent install failed:\n{result.stderr}"
-        vst3 = install_dir / "AW-01.vst3"
+        vst3 = install_dir / "DD-01.vst3"
         au = None
 
     else:  # macOS — no temp-path override exists, installs to the real system path
         result = subprocess.run(["sudo", "installer", "-pkg", str(get_plugin_installer_path), "-target", "/"], capture_output=True, text=True)
         assert result.returncode == 0, f"Silent install failed:\n{result.stderr}"
-        vst3 = Path("/Library/Audio/Plug-Ins/VST3/AW-01.vst3")
-        au = Path("/Library/Audio/Plug-Ins/Components/AW-01.component")
+        vst3 = Path("/Library/Audio/Plug-Ins/VST3/DD-01.vst3")
+        au = Path("/Library/Audio/Plug-Ins/Components/DD-01.component")
 
     yield vst3, au
 

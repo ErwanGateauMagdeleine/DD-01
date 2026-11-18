@@ -2,5 +2,6 @@
 .*
 build
 
-# Except for .gitignore
+# Except for .gitignore and .github
 !.gitignore
+!.github

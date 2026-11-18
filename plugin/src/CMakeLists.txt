@@ -96,30 +96,30 @@ target_link_libraries("${PROJECT_NAME}"
 
 if (WIN32)
     install(FILES
-        "${CMAKE_BINARY_DIR}/src/AW-01_artefacts/$<CONFIG>/VST3/AW-01.vst3/Contents/x86_64-win/AW-01.vst3"
+        "${CMAKE_BINARY_DIR}/src/DD-01_artefacts/$<CONFIG>/VST3/DD-01.vst3/Contents/x86_64-win/DD-01.vst3"
         DESTINATION "."
         COMPONENT VST3
     )
 elseif (APPLE)
-    install(DIRECTORY "$<TARGET_BUNDLE_DIR:AW-01_VST3>"
+    install(DIRECTORY "$<TARGET_BUNDLE_DIR:DD-01_VST3>"
             DESTINATION "Library/Audio/Plug-Ins/VST3"
             COMPONENT VST3)
 
-    install(DIRECTORY "$<TARGET_BUNDLE_DIR:AW-01_AU>"
+    install(DIRECTORY "$<TARGET_BUNDLE_DIR:DD-01_AU>"
             DESTINATION "Library/Audio/Plug-Ins/Components"
             COMPONENT AU)
 endif()
 
 # --- CPack config ---
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/../LICENSE.txt")
-set(CPACK_PACKAGE_FILE_NAME "AW-01")
-set(CPACK_PACKAGE_NAME "AW-01")
+set(CPACK_PACKAGE_FILE_NAME "DD-01")
+set(CPACK_PACKAGE_NAME "DD-01")
 set(CPACK_PACKAGE_VENDOR "R1")
 set(CPACK_PACKAGE_VERSION "${CMAKE_PROJECT_VERSION}")
 
 if (WIN32)
     set(CPACK_GENERATOR "NSIS")
-    set(CPACK_NSIS_DISPLAY_NAME "AW-01")
+    set(CPACK_NSIS_DISPLAY_NAME "DD-01")
     set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES64\\\\Common Files")
     set(CPACK_COMPONENTS_ALL VST3)
 elseif (APPLE)
