@@ -30,4 +30,6 @@ target_include_directories(dspTests
         ${CMAKE_CURRENT_SOURCE_DIR}/../../../src/dsp/
 )
 
+set_property(TARGET dspTests PROPERTY COMPILE_WARNING_AS_ERROR ON)
+
 add_test(NAME DSP_TESTS COMMAND dspTests)

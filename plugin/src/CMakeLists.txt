@@ -94,6 +94,8 @@ target_link_libraries("${PROJECT_NAME}"
     juce::juce_recommended_warning_flags
     BINARY_DATA)
 
+set_property(TARGET "${PROJECT_NAME}" PROPERTY COMPILE_WARNING_AS_ERROR ON)
+
 if (WIN32)
     install(FILES
         "${CMAKE_BINARY_DIR}/src/DD-01_artefacts/$<CONFIG>/VST3/DD-01.vst3/Contents/x86_64-win/DD-01.vst3"
