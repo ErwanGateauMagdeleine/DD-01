@@ -17,8 +17,7 @@
 
 #pragma once
 #include "circularBuffer.h"
-
-#define SAMPLE_RATE (44100)
+#include "testsCommonVars.h"
 
 TEST_CASE("Buffer Length is a power of two")
 {

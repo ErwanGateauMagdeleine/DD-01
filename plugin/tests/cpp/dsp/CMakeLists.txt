@@ -16,7 +16,9 @@
 
 add_executable(dspTests 
     main.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/CircularBufferTests.h)
+    ${CMAKE_CURRENT_SOURCE_DIR}/CircularBufferTests.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/delayTests.h
+    testsCommonVars.h)
 
 target_compile_features(dspTests PRIVATE cxx_std_20)
 
