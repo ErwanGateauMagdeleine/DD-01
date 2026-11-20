@@ -63,6 +63,8 @@ public:
 
         revBuf.prepare(newSampleRate, revDelayBufSz);
         revDelayBuf.prepare(newSampleRate, delayBufSz);
+
+        halfDelayBuf.prepare(newSampleRate, revDelayBufSz);
     }
 
     void reset()
@@ -75,12 +77,30 @@ public:
         auto y_straight = straightDelayBuf.readSampleInterp(delayTime);
         straightDelayBuf.writeSample(x + feedback * y_straight);
 
+        auto rev_delay = 2 * delayTime * revDelayPhase;
+        auto rev_gain = 4 * revDelayPhase * (1 - revDelayPhase);
+
+        revDelayPhase += revDelayPhaseInc;
+        if (revDelayPhase >= 1)
+        {
+            revDelayPhase -= static_cast<SampleType>(1.0);
+        }
+
+        auto pureRev = rev_gain * revBuf.readSampleInterp(rev_delay);
+        auto pureRevDelayed = revDelayBuf.readSampleInterp(delayTime);
+        auto pureRevSum = pureRev + pureRevDelayed;
+        revBuf.writeSample(x);
+        revDelayBuf.writeSample(feedback * pureRevSum);
+
+        auto halfRev = rev_gain * halfDelayBuf.readSampleInterp(rev_delay);
+        halfDelayBuf.writeSample(x + feedback * halfRev);
+
         switch (type)
         {
             case delayType::HALF_REVERSED:
-                return 0;
+                return halfRev;
             case delayType::REVERSED:
-                return 0;
+                return pureRevSum;
             default:
                 return y_straight;
         }
@@ -97,6 +117,9 @@ private:
 
     CircularBuffer<SampleType> revBuf;
     CircularBuffer<SampleType> revDelayBuf;
+
+    CircularBuffer<SampleType> halfDelayBuf;
+
     delayType type;
     SampleType feedback;
     SampleType delayTime;

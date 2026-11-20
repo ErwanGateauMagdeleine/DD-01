@@ -15,4 +15,12 @@
    along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#define SAMPLE_RATE (44100)
+#pragma once
+
+namespace test
+{
+   constexpr double kSampleRate = 44100.0;
+   constexpr float kTolerance = 1e-4f;
+   constexpr float kMaxDelayTime = 3.0f;
+   constexpr float kTestTimeSeconds = 4 * kMaxDelayTime;
+}

@@ -50,8 +50,8 @@ public:
         unsigned dInt = static_cast<unsigned>(delaySamples);
         float fract = delaySamples - static_cast<float>(dInt);
 
-        SampleType y1 = readSample(static_cast<int>(dInt));
-        SampleType y2 = readSample(static_cast<int>(dInt) + 1);
+        SampleType y1 = readSample(dInt);
+        SampleType y2 = readSample(dInt + 1);
 
         return (fract * y2) + ((1- fract) * y1);
     }

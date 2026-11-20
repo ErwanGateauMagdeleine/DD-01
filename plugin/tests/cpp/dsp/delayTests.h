@@ -19,23 +19,22 @@
 #include "delay.h"
 #include "testsCommonVars.h"
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
-
-#define MAX_DELAY_TIME_S (2)
-#define TESTS_TIME_S (4 * MAX_DELAY_TIME_S)
+#include "wavIo.h"
+#include <string.h>
 
 TEST_CASE("Straigth delay feedback works properly")
 {
     auto dut = delay<float>();
     std::vector<float> outBuf;
 
-    int testDurationSamples = static_cast<int>(SAMPLE_RATE * TESTS_TIME_S);
+    int testDurationSamples = static_cast<int>(test::kSampleRate * test::kTestTimeSeconds);
     outBuf.assign(testDurationSamples, 0);
 
     float delayTime = GENERATE(1.0, 0.5, 1.5, 0.25, 0.75);
 
-    int delayTimeSample = static_cast<int>(delayTime * SAMPLE_RATE);
+    int delayTimeSample = static_cast<int>(delayTime * test::kSampleRate);
 
-    dut.prepare(SAMPLE_RATE, MAX_DELAY_TIME_S);
+    dut.prepare(test::kSampleRate, test::kMaxDelayTime);
     dut.setDelayType(delay<float>::delayType::STRAIGHT);
     dut.setFeedback(1.0f);
     dut.setDelayTime(delayTime);
@@ -67,14 +66,14 @@ TEST_CASE("Straigth delay feedback decays properly")
     float amplitude = 1.0f;
     float feedback = 0.5f;
 
-    int testDurationSamples = static_cast<int>(SAMPLE_RATE * TESTS_TIME_S);
+    int testDurationSamples = static_cast<int>(test::kSampleRate * test::kTestTimeSeconds);
     outBuf.assign(testDurationSamples, 0);
 
     float delayTime = GENERATE(1.0, 0.5, 1.5, 0.25, 0.75);
 
-    int delayTimeSample = static_cast<int>(delayTime * SAMPLE_RATE);
+    int delayTimeSample = static_cast<int>(delayTime * test::kSampleRate);
 
-    dut.prepare(SAMPLE_RATE, MAX_DELAY_TIME_S);
+    dut.prepare(test::kSampleRate, test::kMaxDelayTime);
     dut.setDelayType(delay<float>::delayType::STRAIGHT);
     dut.setFeedback(feedback);
     dut.setDelayTime(delayTime);
@@ -100,18 +99,54 @@ TEST_CASE("Straigth delay feedback decays properly")
     }
 }
 
-
 TEST_CASE("Reversed delay phase increment is the inverse of the delay time")
 {
     auto dut = delay<float>();
 
     float d = GENERATE(1.0, 0.5, 1.5, 0.25, 0.75, 0.35, 0.786);
 
-    dut.prepare(SAMPLE_RATE, MAX_DELAY_TIME_S);
+    dut.prepare(test::kSampleRate, test::kMaxDelayTime);
     dut.setDelayTime(d);
 
-    float expected = 1.0f / (d * SAMPLE_RATE);
+    float expected = 1.0f / (d * test::kSampleRate);
 
     float phaseInc = dut.getRevDelayPhaseIncrement();
     REQUIRE_THAT(phaseInc, Catch::Matchers::WithinRel(expected));
+}
+
+TEST_CASE("Reversed delay is working properly")
+{
+    auto dut = delay<float>();
+    float feedback = 0.25f; /* Regenerate expected file if changed */
+    float delayTime = 0.3f; /* Regenerate expected file if changed */
+
+    const std::string dir = AUDIO_DIR;
+
+    Audio expectedOut = loadWav(dir + "/one-time-piano-processed-rev.wav");
+    Audio inSignal = loadWav(dir + "/one-time-piano.wav");
+
+    REQUIRE(expectedOut.numChannels == inSignal.numChannels);
+    REQUIRE(expectedOut.sampleRate == inSignal.sampleRate);
+    REQUIRE(expectedOut.getNumFrames() >= inSignal.getNumFrames());
+
+    dut.prepare(test::kSampleRate, test::kMaxDelayTime);
+    dut.setDelayType(delay<float>::delayType::REVERSED);
+    dut.setFeedback(feedback);
+    dut.setDelayTime(delayTime);
+
+    for(int i = 0; i < expectedOut.getNumFrames(); i++)
+    {
+        float inData;
+        if (i < inSignal.getNumFrames())
+        {
+            inData = inSignal.samples[i];
+        }
+        else
+        {
+            inData = 0.0f;
+        }
+
+        INFO("index under process: i = " << i);
+        REQUIRE_THAT(dut.process(inData), Catch::Matchers::WithinRel(expectedOut.samples[i]));
+    }
 }

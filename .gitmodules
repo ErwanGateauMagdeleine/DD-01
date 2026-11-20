@@ -4,3 +4,6 @@
 [submodule "plugin/tests/cpp/Catch2"]
 	path = plugin/tests/cpp/Catch2
 	url = https://github.com/catchorg/Catch2.git
+[submodule "plugin/tests/cpp/dr_libs"]
+	path = plugin/tests/cpp/dr_libs
+	url = https://github.com/mackron/dr_libs.git
