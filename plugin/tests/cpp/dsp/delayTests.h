@@ -99,3 +99,19 @@ TEST_CASE("Straigth delay feedback decays properly")
         }
     }
 }
+
+
+TEST_CASE("Reversed delay phase increment is the inverse of the delay time")
+{
+    auto dut = delay<float>();
+
+    float d = GENERATE(1.0, 0.5, 1.5, 0.25, 0.75, 0.35, 0.786);
+
+    dut.prepare(SAMPLE_RATE, MAX_DELAY_TIME_S);
+    dut.setDelayTime(d);
+
+    float expected = 1.0f / (d * SAMPLE_RATE);
+
+    float phaseInc = dut.getRevDelayPhaseIncrement();
+    REQUIRE_THAT(phaseInc, Catch::Matchers::WithinRel(expected));
+}

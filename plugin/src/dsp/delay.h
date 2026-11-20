@@ -32,6 +32,8 @@ public:
     delay()
     {
         type = delayType::STRAIGHT;
+        revDelayPhase = static_cast<SampleType>(0.0);
+        revDelayPhaseInc = static_cast<SampleType>(0.0);
     }
 
     void setDelayType(delayType newDelayType)
@@ -47,6 +49,7 @@ public:
     void setDelayTime(SampleType newDelayTime)
     {
         delayTime = newDelayTime;
+        revDelayPhaseInc = static_cast<SampleType>(1.0 / (delayTime * sampleRate));
     }
 
     void prepare(double newSampleRate, double maxDelayTimeInSec)
@@ -54,8 +57,12 @@ public:
         sampleRate = newSampleRate;
 
         int delayBufSz = static_cast<int>(newSampleRate * maxDelayTimeInSec);
+        int revDelayBufSz =  static_cast<int>((2 * newSampleRate * maxDelayTimeInSec) + 2);
 
         straightDelayBuf.prepare(newSampleRate, delayBufSz);
+
+        revBuf.prepare(newSampleRate, revDelayBufSz);
+        revDelayBuf.prepare(newSampleRate, delayBufSz);
     }
 
     void reset()
@@ -65,18 +72,35 @@ public:
 
     SampleType process(SampleType x)
     {
-        auto y = straightDelayBuf.readSampleInterp(delayTime);
-        straightDelayBuf.writeSample(x + feedback * y);
+        auto y_straight = straightDelayBuf.readSampleInterp(delayTime);
+        straightDelayBuf.writeSample(x + feedback * y_straight);
 
-        return y;
+        switch (type)
+        {
+            case delayType::HALF_REVERSED:
+                return 0;
+            case delayType::REVERSED:
+                return 0;
+            default:
+                return y_straight;
+        }
     }
 
+    SampleType getRevDelayPhaseIncrement()
+    {
+        return revDelayPhaseInc;
+    }
 private:
     double sampleRate;
 
     CircularBuffer<SampleType> straightDelayBuf;
 
+    CircularBuffer<SampleType> revBuf;
+    CircularBuffer<SampleType> revDelayBuf;
     delayType type;
     SampleType feedback;
     SampleType delayTime;
+
+    SampleType revDelayPhase;
+    SampleType revDelayPhaseInc;
 };

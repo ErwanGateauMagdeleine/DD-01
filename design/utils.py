@@ -59,3 +59,17 @@ def get_audio(file_name):
     signal = signal / max_value
 
     return sample_rate, num_channel, signal
+
+
+def write_audio_file(sample_rate, audio_data, file_name):
+    """
+    Writes an audio file with the given data sample rate etc.
+
+    Parameters:
+        sample_rate (float): Sample rate of the signal
+        num_channels (int): number of channels of the file.
+        audio_data (numpy.ndarray): audio data. It must be already interleaved if
+                                    the number of channels is > 1.
+        file_name (str): name of the file generated.
+    """
+    wavfile.write(file_name, sample_rate, audio_data.astype('float32'))
