@@ -46,7 +46,7 @@ if __name__== "__main__":
     sample_rate, num_channels, signal = get_audio(args.in_file)
     if num_channels > 1:
             signal = signal[:, 0]
-    signal = np.pad(signal, (0, len(signal) + 3 * sample_rate))
+    signal = np.pad(signal, (0, int(len(signal) + 3 * sample_rate)))
 
     out_signal = np.zeros(len(signal))
 
