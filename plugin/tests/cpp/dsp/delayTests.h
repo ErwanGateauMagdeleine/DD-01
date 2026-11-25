@@ -114,25 +114,38 @@ TEST_CASE("Reversed delay phase increment is the inverse of the delay time")
     REQUIRE_THAT(phaseInc, Catch::Matchers::WithinRel(expected));
 }
 
-TEST_CASE("Reversed delay is working properly")
+
+struct GoldenVectTestCase
+{
+    std::string inFile;
+    std::string outFile;
+    delay<float>::delayType delayType;
+    float feedback;
+    float delayTime;
+};
+
+TEST_CASE("Test the delay with a golden vector")
 {
     auto dut = delay<float>();
-    float feedback = 0.25f; /* Regenerate expected file if changed */
-    float delayTime = 0.3f; /* Regenerate expected file if changed */
+
+    auto data = GENERATE(values<GoldenVectTestCase>({
+        {"/one-time-piano.wav", "/one-time-piano-processed-rev.wav", delay<float>::delayType::REVERSED, 0.25f, 0.3f},
+        {"/one-time-piano.wav", "/one-time-piano-processed-half-rev.wav", delay<float>::delayType::HALF_REVERSED, 0.25f, 0.3f}
+    }));
 
     const std::string dir = AUDIO_DIR;
 
-    Audio expectedOut = loadWav(dir + "/one-time-piano-processed-rev.wav");
-    Audio inSignal = loadWav(dir + "/one-time-piano.wav");
+    Audio expectedOut = loadWav(dir + data.outFile);
+    Audio inSignal = loadWav(dir + data.inFile);
 
     REQUIRE(expectedOut.numChannels == inSignal.numChannels);
     REQUIRE(expectedOut.sampleRate == inSignal.sampleRate);
     REQUIRE(expectedOut.getNumFrames() >= inSignal.getNumFrames());
 
     dut.prepare(test::kSampleRate, test::kMaxDelayTime);
-    dut.setDelayType(delay<float>::delayType::REVERSED);
-    dut.setFeedback(feedback);
-    dut.setDelayTime(delayTime);
+    dut.setDelayType(data.delayType);
+    dut.setFeedback(data.feedback);
+    dut.setDelayTime(data.delayTime);
 
     for(int i = 0; i < expectedOut.getNumFrames(); i++)
     {
@@ -146,7 +159,6 @@ TEST_CASE("Reversed delay is working properly")
             inData = 0.0f;
         }
 
-        INFO("index under process: i = " << i);
         REQUIRE_THAT(dut.process(inData), Catch::Matchers::WithinRel(expectedOut.samples[i]));
     }
 }
