@@ -57,7 +57,7 @@ set(SourceFiles
     gui/customRotarySlider.h
     gui/customRotarySlider.cpp
     gui/colourScheme.h
-    dsp/DelayLine.h)
+    dsp/circularBuffer.h)
 
 target_sources("${PROJECT_NAME}" PRIVATE ${SourceFiles})
 
@@ -93,6 +93,8 @@ target_link_libraries("${PROJECT_NAME}"
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags
     BINARY_DATA)
+
+set_property(TARGET "${PROJECT_NAME}" PROPERTY COMPILE_WARNING_AS_ERROR ON)
 
 if (WIN32)
     install(FILES

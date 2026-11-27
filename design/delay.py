@@ -47,18 +47,20 @@ class CircularBuffer:
     This class implements a circular buffer. The size of the buffer will be the nearest
     power of two to the requested size.
 
-    Attributes
+    Parameters
     ----------
     buf_size (int): The size of the circular buffer
-    write_pointer (int): cicular buffer writting head
-    buffer (np.ndarray): circular buffer
-    wraping_mask (int): Mask used to wrap the read pointer efficiently.
+
+    sample_rate (np.float64): Operating sample rate
+
+    dtype: The buffer content ndtype.
     """
-    def __init__(self, buf_size):
+    def __init__(self, buf_size, sample_rate, dtype=np.float32):
         self.buf_size = int(math.pow(2, math.ceil(math.log(buf_size) / math.log(2))))
-        self.buffer = np.zeros(self.buf_size)
+        self.buffer = np.zeros(self.buf_size, dtype=dtype)
         self.wraping_mask = self.buf_size - 1
         self.write_pointer = 0
+        self.sample_rate = np.float64(sample_rate)
 
     def write_sample(self, x):
         """
@@ -67,7 +69,7 @@ class CircularBuffer:
 
         Params
         ------
-        x (float): input sample
+        x (np.float32): input sample
         """
         self.buffer[self.write_pointer] = x
         self.write_pointer = (self.write_pointer + 1) & self.wraping_mask
@@ -83,7 +85,7 @@ class CircularBuffer:
 
         return
         ------
-        y (float): The output sample.
+        y (np.float32): The output sample.
         """
         # - 1 as we read before we write.
         read_pointer = (self.write_pointer - 1) - int(delay)
@@ -93,11 +95,23 @@ class CircularBuffer:
 
     def read_sample(self, delay):
         """
-        """
-        y1 = self._read_sample(int(delay))
-        y2 = self._read_sample(int(delay) + 1)
+        Read a sample with an interpolation.
 
-        fraction = delay - int(delay)
+        Params
+        ------
+        delay (np.float32): The delay to be applied in seconds
+
+        return
+        ------
+        y (np.float32) The output delayed with interpolation.
+        """
+        delay_in_samples = np.float32(self.sample_rate * delay)
+        integer_delay = int(delay_in_samples)
+
+        y1 = self._read_sample(integer_delay)
+        y2 = self._read_sample(integer_delay + 1)
+
+        fraction = delay_in_samples - np.float32(integer_delay)
 
         return (fraction * y2) + (1.0 - fraction) * y1
 
@@ -108,16 +122,16 @@ class Delay:
 
     Attributes
     ---------
-    sample_rate (int): Sampling rate in Hz.
+    sample_rate (np.float64): Sampling rate in Hz.
 
     circular_buffer (circularBuffer): Circular buffer used for the delay.
 
     reversed_circular_buffer (circularBuffer): Circular buffer for the reverse algo.
 
-    feedback (float): feedback amount (in the range [0, 1])
+    feedback (np.float32): feedback amount (in the range [0, 1])
     """
 
-    MAX_DELAY_TIME_S = 3
+    MAX_DELAY_TIME_S = np.float32(3.0)
 
     def __init__(self, sample_rate, delay_time_s, feedback, dry_wet, delay_type):
         """
@@ -125,25 +139,24 @@ class Delay:
 
         Arguments
         ---------
-        sample_rate (int): Sample rate of the delay.
+        sample_rate (np.float64): Sample rate of the delay.
 
-        delay_time_s (float): delay time in seconds.
+        delay_time_s (np.float32): delay time in seconds.
 
-        feedback (float): feedback amount (in the range [0, 1])
+        feedback (np.float32): feedback amount (in the range [0, 1])
 
-        dry_wet (float): dry / wet amount (in the range [0, 1] 0 being fully
-        dry, 1 being completely wet).
+        dry_wet (np.float32): dry / wet amount (in the range [0, 1] 0 being fully
+                              dry, 1 being completely wet).
         """
-        self.sample_rate = sample_rate
-        self.circular_buffer = CircularBuffer(int(self.MAX_DELAY_TIME_S * sample_rate))
-        self.reversed_circular_buffer = CircularBuffer(int(2 * self.MAX_DELAY_TIME_S * sample_rate) + 2)
-        self.feedback = feedback
-        self.dry_wet = dry_wet
-
-        self.delay_in_samples = delay_time_s * self.sample_rate
+        self.sample_rate = np.float64(sample_rate)
+        self.circular_buffer = CircularBuffer(int(self.MAX_DELAY_TIME_S * self.sample_rate), self.sample_rate)
+        self.reversed_circular_buffer = CircularBuffer(int(2 * self.MAX_DELAY_TIME_S * self.sample_rate) + 2, self.sample_rate)
+        self.feedback = np.float32(feedback)
+        self.dry_wet = np.float32(dry_wet)
+        self.delay_time_s = np.float32(delay_time_s)
 
         self.delay_type = delay_type
-        self.phase = 0.0
+        self.phase = np.float32(0.0)
 
     def _process_straight(self, x):
         """
@@ -151,13 +164,13 @@ class Delay:
 
         Arguments
         ---------
-        x (float): delay input.
+        x (np.float32): delay input.
 
         returns
         -------
         y: delay output.
         """
-        y = self.circular_buffer.read_sample(self.delay_in_samples)
+        y = self.circular_buffer.read_sample(self.delay_time_s)
 
         self.circular_buffer.write_sample(x + self.feedback * y)
 
@@ -175,11 +188,10 @@ class Delay:
         -------
         y: delay output.
         """
-        delay = 2 * self.delay_in_samples * self.phase
-        delay_ratio = delay / (2 * self.delay_in_samples)
-        gain = 4 * (delay_ratio) * (1 - delay_ratio)
+        delay = np.float32(2 * self.delay_time_s * self.phase)
+        gain = np.float32(4 * (self.phase) * (1 - self.phase))
 
-        self.phase += 1 / self.delay_in_samples
+        self.phase += np.float32(1 / (self.delay_time_s * self.sample_rate))
         self.phase %= 1
 
         y = gain * self.reversed_circular_buffer.read_sample(delay)
@@ -194,21 +206,20 @@ class Delay:
 
         Arguments
         ---------
-        x (float): delay input.
+        x (np.float32): delay input.
 
         returns
         -------
         y: delay output.
         """
-        delay = 2 * self.delay_in_samples * self.phase
-        delay_ratio = delay / (2 * self.delay_in_samples)
-        gain = 4 * (delay_ratio) * (1 - delay_ratio)
+        delay = np.float32(2 * self.delay_time_s * self.phase)
+        gain = np.float32(4 * (self.phase) * (1 - self.phase))
 
-        self.phase += 1 / self.delay_in_samples
+        self.phase += np.float32(1 / (self.delay_time_s * self.sample_rate))
         self.phase %= 1
 
         y_delay = gain * self.reversed_circular_buffer.read_sample(delay)
-        y_rev_delay = self.circular_buffer.read_sample(self.delay_in_samples)
+        y_rev_delay = self.circular_buffer.read_sample(self.delay_time_s)
         y_sum = y_delay + y_rev_delay
 
         self.reversed_circular_buffer.write_sample(x)
@@ -251,13 +262,15 @@ if __name__== "__main__":
     if num_channels > 1:
         # Extract the first channel if the signal is stereo
         signal = channels_data[:, 0]
+    else:
+        signal = channels_data
 
     if args.display:
         # Add 0 padding after the signal to see all repetitions when feedback is
-        signal = np.pad(signal, (0, len(signal) + 3 * sample_rate))
+        signal = np.pad(signal, (0, int(len(signal) + 3 * sample_rate)))
         num_samples  = len(signal)
 
-    out_signal = np.zeros(num_samples)
+    out_signal = np.zeros(num_samples, dtype=np.float32)
 
     dut = Delay(sample_rate, delay_time_s, feedback, dry_wet, delay_type)
 

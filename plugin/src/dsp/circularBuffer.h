@@ -29,12 +29,12 @@ public:
         wrapingMask = 0;
     }
 
-    void prepare(double newSampleRate, double maxDelayTimeInSec)
+    void prepare(double newSampleRate, int bufSz)
     {
-        size_t delayLineLength = nextPowerOfTwo(static_cast<int>(newSampleRate * maxDelayTimeInSec));
-        buffer.assign(delayLineLength, 0);
+        size_t bufSzPow2 = nextPowerOfTwo(bufSz);
+        buffer.assign(bufSzPow2, 0);
         writePointer = 0;
-        wrapingMask = static_cast<unsigned>(delayLineLength) - 1;
+        wrapingMask = static_cast<unsigned>(bufSzPow2) - 1;
         sampleRate = newSampleRate;
     }
 
@@ -50,8 +50,8 @@ public:
         unsigned dInt = static_cast<unsigned>(delaySamples);
         float fract = delaySamples - static_cast<float>(dInt);
 
-        SampleType y1 = readSample(static_cast<int>(dInt));
-        SampleType y2 = readSample(static_cast<int>(dInt) + 1);
+        SampleType y1 = readSample(dInt);
+        SampleType y2 = readSample(dInt + 1);
 
         return (fract * y2) + ((1- fract) * y1);
     }
@@ -68,6 +68,17 @@ public:
     size_t getBufferLength()
     {
         return static_cast<size_t>(buffer.size());
+    }
+
+    int getWritePointer()
+    {
+        return writePointer;
+    }
+
+    void reset()
+    {
+        writePointer = 0;
+        std::fill(buffer.begin(), buffer.end(), static_cast<SampleType>(0.0));
     }
 
 private:

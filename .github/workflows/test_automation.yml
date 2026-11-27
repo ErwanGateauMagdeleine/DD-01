@@ -42,6 +42,10 @@ jobs:
         with:
           submodules: recursive
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
       - name: Install NSIS (Windows only)
         if: runner.os == 'Windows'
         run: choco install nsis -y

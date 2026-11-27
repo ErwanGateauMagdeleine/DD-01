@@ -120,8 +120,9 @@ void customLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int wi
                                          float sliderPos, float rotaryStartAngle, float rotaryEndAngle,
                                          juce::Slider& slider)
 {
-    juce::Point center(x + width  / 2.0f, y + height / 2.0f);
-    float radius = juce::jmin(width, height) / 4.0f;
+    juce::Point center(static_cast<float>(x) + static_cast<float>(width)  / 2.0f,
+                       static_cast<float>(y) + static_cast<float>(height) / 2.0f);
+    float radius = static_cast<float>(juce::jmin(width, height)) / 4.0f;
 
     drawTrackArk(g, center, radius, rotaryStartAngle, rotaryEndAngle);
     drawValueArk(g, center, radius, rotaryStartAngle, rotaryEndAngle, sliderPos);

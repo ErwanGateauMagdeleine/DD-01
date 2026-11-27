@@ -15,7 +15,7 @@
 #  along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import numpy as np
-from scipy.io import wavfile
+import soundfile as sf
 
 
 def get_file_num_channels(signal):
@@ -49,13 +49,21 @@ def get_audio(file_name):
     Returns:
         tuple: Sample rate, nummber of channels and audio signal.
     """
-    sample_rate, signal = wavfile.read(file_name)
+    signal, sample_rate= sf.read(file_name, dtype="float32")
     num_channel = get_file_num_channels(signal)
 
-    # Determine the maximum value based on the signal's data type
-    max_value = np.iinfo(signal.dtype).max
+    return np.float64(sample_rate), num_channel, signal
 
-    # Normalize the signal between -1 and 1 using the byte depth max value
-    signal = signal / max_value
 
-    return sample_rate, num_channel, signal
+def write_audio_file(sample_rate, audio_data, file_name):
+    """
+    Writes an audio file with the given data sample rate etc.
+
+    Parameters:
+        sample_rate (float): Sample rate of the signal
+        num_channels (int): number of channels of the file.
+        audio_data (numpy.ndarray): audio data. It must be already interleaved if
+                                    the number of channels is > 1.
+        file_name (str): name of the file generated.
+    """
+    sf.write(file_name, audio_data.astype('float32'), int(sample_rate), subtype="FLOAT")

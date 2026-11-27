@@ -16,7 +16,10 @@
 
 add_executable(dspTests 
     main.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/CircularBufferTests.h)
+    ${CMAKE_CURRENT_SOURCE_DIR}/CircularBufferTests.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/delayTests.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/testsCommonVars.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/wavIo.cpp)
 
 target_compile_features(dspTests PRIVATE cxx_std_20)
 
@@ -29,5 +32,10 @@ target_include_directories(dspTests
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../../../src/dsp/
 )
+
+set_property(TARGET dspTests PROPERTY COMPILE_WARNING_AS_ERROR ON)
+
+target_include_directories(dspTests SYSTEM PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../dr_libs)
+target_compile_definitions(dspTests PRIVATE AUDIO_DIR="${CMAKE_CURRENT_SOURCE_DIR}/audio")
 
 add_test(NAME DSP_TESTS COMMAND dspTests)
